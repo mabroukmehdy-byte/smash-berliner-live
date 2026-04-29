@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Marquee from 'react-fast-marquee';
+import { initializeApp } from 'firebase/app';
+import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import {
   Phone,
   MapPin,
@@ -12,6 +14,7 @@ import {
   X,
   Camera,
   Globe,
+  KeyRound,
 } from 'lucide-react';
 
 const NAV = [
@@ -21,37 +24,6 @@ const NAV = [
   { id: 'avis', label: 'Avis' },
   { id: 'horaires', label: 'Horaires' },
   { id: 'trouver', label: 'Nous Trouver' },
-];
-
-const SIGNATURES = [
-  {
-    name: 'Le Berliner Smash',
-    desc: 'Double steak smash 100% pur boeuf, cheddar fondu, oignons confits, sauce maison, bun brioche.',
-    price: '12,90EUR',
-    tag: 'Signature',
-    img: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000',
-  },
-  {
-    name: 'Doner Berlinois',
-    desc: 'Veau et agneau marines, grille a la broche, pain pide croustillant, crudites, sauce blanche + harissa.',
-    price: '11,50EUR',
-    tag: 'Berlin Style',
-    img: 'https://images.unsplash.com/photo-1699728088614-7d1d4277414b?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000',
-  },
-  {
-    name: 'Triple Trouble',
-    desc: 'Trois steaks smashes, triple cheddar, bacon croustillant, sauce ketchup-moutarde fumee.',
-    price: '15,90EUR',
-    tag: 'XXL',
-    img: 'https://images.pexels.com/photos/20722029/pexels-photo-20722029.jpeg?auto=compress&w=1000',
-  },
-  {
-    name: 'Frites Maison',
-    desc: 'Pommes de terre fraiches, double cuisson, fleur de sel. Servies brulantes.',
-    price: '4,50EUR',
-    tag: 'Fait Maison',
-    img: 'https://images.unsplash.com/photo-1518013431117-eb1465fa5752?crop=entropy&cs=srgb&fm=jpg&q=85&w=1000',
-  },
 ];
 
 const REVIEWS = [
@@ -73,6 +45,100 @@ const REVIEWS = [
 ];
 
 const HIGHLIGHTS = ['Viande fraiche du jour', 'Cuisson minute a la plancha', 'Click & collect rapide', 'Recettes signature'];
+const DEFAULT_HERO_TEXT = 'La rencontre du smash burger et du doner berlinois. Viande ecrasee minute, pains chauds, sauces maison.';
+const STORAGE_KEY = 'smash_berliner_site_data_v1';
+const FIREBASE_KEY = 'site_data';
+const ADMIN_SESSION_KEY = 'smash_admin_auth_v1';
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'Smash2026!';
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyAf0CIHBZ-wEQJ8CCUUWo1Wl9P7typ_ZPI',
+  authDomain: 'gptcall-416910.firebaseapp.com',
+  projectId: 'gptcall-416910',
+  storageBucket: 'gptcall-416910.appspot.com',
+  messagingSenderId: '99275526699',
+  appId: '1:99275526699:web:3b623e1e2996108b52106e',
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+const FULL_MENU = [
+  {
+    category: 'Smash',
+    photo: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: 'Original', desc: 'Double steak smashe, double cheddar, cornichons, salade, tomates, oignons, sauce smash maison.', price: '8,50 EUR' },
+      { name: 'Big', desc: 'Triple steak smashe, triple cheddar, salade, tomates, cornichons, oignons rouges, sauce smash maison.', price: '9,50 EUR' },
+      { name: 'Spicy', desc: 'Double steak smashe, cheddar, salade, tomates, jalapenos, oignons rouges, sauce spicy maison.', price: '8,50 EUR' },
+      { name: 'Chevre-Miel', desc: 'Double steak smashe, cheddar, fromage de chevre, miel, salade, oignons rouges.', price: '9,90 EUR' },
+      { name: 'Raclette', desc: 'Double steak smashe, cheddar, fromage raclette, salade, tomates, oignons frits, sauce smash maison.', price: '10,50 EUR' },
+    ],
+  },
+  {
+    category: 'Berliner',
+    photo: 'https://images.unsplash.com/photo-1699728088614-7d1d4277414b?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: 'Classique', desc: 'Viande kebab, salade, tomates, oignons rouges, sauce au choix.', price: '6,90 EUR' },
+      { name: 'Berliner', desc: 'Viande kebab, salade, legumes grilles, oignons rouges, feta, sauce blanche maison.', price: '7,90 EUR' },
+      { name: 'Chevre-Miel', desc: 'Viande kebab, poivrons caramelises, fromage de chevre, miel, salade, sauce blanche maison.', price: '8,90 EUR' },
+      { name: 'Traditionnel', desc: 'Viande kebab, salade, tomates, oignons rouges, chou rouge, feta, sauce blanche maison.', price: '7,90 EUR' },
+      { name: 'Raclette', desc: 'Viande kebab, salade, tomates, oignons rouges, fromage raclette, chou rouge, feta, sauce blanche maison.', price: '9,90 EUR' },
+    ],
+  },
+  {
+    category: 'Poutine',
+    photo: 'https://images.unsplash.com/photo-1518013431117-eb1465fa5752?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: '1 Viande', desc: 'Base poutine maison, sauce chaude, topping viande au choix.', price: '9,00 EUR' },
+      { name: '2 Viandes', desc: 'Base poutine maison, sauce chaude, double topping viande.', price: '10,00 EUR' },
+      { name: '3 Viandes', desc: 'Base poutine maison, sauce chaude, triple topping viande.', price: '11,00 EUR' },
+    ],
+  },
+  {
+    category: 'Tacos',
+    photo: 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: '1 Viande', desc: 'Tacos gratine, sauce fromagere, 1 viande au choix.', price: '9,00 EUR' },
+      { name: '2 Viandes', desc: 'Tacos gratine, sauce fromagere, 2 viandes au choix.', price: '10,00 EUR' },
+      { name: '3 Viandes', desc: 'Tacos gratine, sauce fromagere, 3 viandes au choix.', price: '11,00 EUR' },
+    ],
+  },
+  {
+    category: 'Desserts',
+    photo: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: 'Tiramisu', desc: 'Selon disponibilites.', price: '3,50 EUR' },
+      { name: 'Tarte au Daim', desc: 'Selon disponibilites.', price: '2,50 EUR' },
+    ],
+  },
+  {
+    category: 'Tex-Mex',
+    photo: 'https://images.unsplash.com/photo-1608039829572-78524f79c4c7?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: 'Tenders x4', desc: 'Poulet croustillant, sauce au choix.', price: '3,50 EUR' },
+      { name: 'Nuggets x6', desc: 'Poulet pane, sauce au choix.', price: '3,50 EUR' },
+      { name: 'Mozza Sticks', desc: 'Batonnets de mozzarella panes.', price: '2,50 EUR' },
+    ],
+  },
+  {
+    category: 'Boissons',
+    photo: 'https://images.unsplash.com/photo-1527960471264-932f39eb5846?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: 'Canette 33cl', desc: 'Coca, Fanta, Oasis, Sprite selon disponibilite.', price: '1,50 EUR' },
+      { name: 'Frites Maison', desc: 'Portion snack, servie chaude.', price: '3,00 EUR' },
+    ],
+  },
+  {
+    category: 'Menus Etudiant',
+    photo: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
+    items: [
+      { name: 'Kebab Classique', desc: 'Sur presentation de la carte etudiant.', price: '7,90 EUR' },
+      { name: 'Classic Smash', desc: 'Sur presentation de la carte etudiant.', price: '7,90 EUR' },
+    ],
+  },
+];
 
 const HOURS = [
   ['Lundi', 'Ferme'],
@@ -91,6 +157,40 @@ const GALLERY = [
   { url: 'https://images.unsplash.com/photo-1550317138-10000687a72b?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200', span: 'md:col-span-5', alt: 'Cheeseburger', h: 'h-[220px] sm:h-[250px] md:h-full', pos: 'object-center' },
   { url: 'https://images.pexels.com/photos/20722029/pexels-photo-20722029.jpeg?auto=compress&w=1200', span: 'md:col-span-7', alt: 'Burger XXL', h: 'h-[240px] sm:h-[280px] md:h-full', pos: 'object-top' },
 ];
+
+function loadSiteData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return { heroText: DEFAULT_HERO_TEXT, highlights: HIGHLIGHTS, menu: FULL_MENU };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      heroText: parsed.heroText || DEFAULT_HERO_TEXT,
+      highlights: Array.isArray(parsed.highlights) && parsed.highlights.length ? parsed.highlights : HIGHLIGHTS,
+      menu: Array.isArray(parsed.menu) && parsed.menu.length ? parsed.menu : FULL_MENU,
+    };
+  } catch {
+    return { heroText: DEFAULT_HERO_TEXT, highlights: HIGHLIGHTS, menu: FULL_MENU };
+  }
+}
+
+async function loadCloudData() {
+  const ref = doc(db, 'smash_berliner', FIREBASE_KEY);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return {
+    heroText: data.heroText || DEFAULT_HERO_TEXT,
+    highlights: Array.isArray(data.highlights) && data.highlights.length ? data.highlights : HIGHLIGHTS,
+    menu: Array.isArray(data.menu) && data.menu.length ? data.menu : FULL_MENU,
+  };
+}
+
+async function saveCloudData(siteData) {
+  const ref = doc(db, 'smash_berliner', FIREBASE_KEY);
+  await setDoc(ref, siteData, { merge: true });
+}
 
 function useReveal() {
   useEffect(() => {
@@ -141,7 +241,7 @@ function Nav() {
           <Phone size={16} /> Commander
         </a>
 
-        <button className="md:hidden p-2 brutal-border bg-white" aria-label="menu" onClick={() => setOpen(!open)}>
+        <button className="md:hidden p-2 brutal-border bg-[#1a1c20] text-white" aria-label="menu" onClick={() => setOpen(!open)}>
           {open ? <X size={20} /> : <MenuIcon size={20} />}
         </button>
       </div>
@@ -171,7 +271,7 @@ function Nav() {
   );
 }
 
-function Hero() {
+function Hero({ siteData }) {
   return (
     <section id="haut" className="relative overflow-hidden border-b-2 border-[var(--ink)]">
       <div className="grain" />
@@ -186,10 +286,7 @@ function Hero() {
             <br />
             <span className="text-[var(--ketchup)]">BERLINER.</span>
           </h1>
-          <p className="mt-6 max-w-xl text-lg md:text-xl text-[var(--ink-2)] font-medium">
-            La rencontre du <strong>smash burger</strong> et du <strong>doner berlinois</strong>. Viande ecrasee minute,
-            pains chauds, sauces maison.
-          </p>
+          <p className="mt-6 max-w-xl text-lg md:text-xl text-[var(--ink-2)] font-medium">{siteData.heroText}</p>
           <div className="mt-8 flex flex-wrap gap-4">
             <a href="tel:+33238479119" className="btn-primary">
               <Phone size={18} /> Commander · 02 38 47 91 19
@@ -208,8 +305,8 @@ function Hero() {
             <span className="text-[var(--ink-2)]">· avis Google clients reguliers</span>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
-            {HIGHLIGHTS.map((item) => (
-              <span key={item} className="px-3 py-1 text-xs font-bold uppercase tracking-wider brutal-border bg-white">
+            {siteData.highlights.map((item) => (
+              <span key={item} className="px-3 py-1 text-xs font-bold uppercase tracking-wider brutal-border bg-white text-[#141414]">
                 {item}
               </span>
             ))}
@@ -260,7 +357,9 @@ function MarqueeStrip() {
   );
 }
 
-function MenuSection() {
+function MenuSection({ siteData }) {
+  const [selected, setSelected] = useState(null);
+
   return (
     <section id="carte" className="py-20 md:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -276,28 +375,6 @@ function MenuSection() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 mt-12">
-          {SIGNATURES.map((item) => (
-            <article key={item.name} className="reveal bg-white brutal-border brutal-shadow overflow-hidden flex flex-col">
-              <div className="relative h-44 sm:h-48 overflow-hidden border-b-2 border-[var(--ink)]">
-                <img
-                  src={item.img}
-                  alt={item.name}
-                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-                />
-                <span className="absolute top-3 left-3 tag-pill bg-[var(--ketchup)] !text-white">{item.tag}</span>
-              </div>
-              <div className="p-6 flex flex-col flex-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="font-display text-3xl">{item.name}</h3>
-                  <span className="font-display text-2xl text-[var(--ketchup)]">{item.price}</span>
-                </div>
-                <p className="mt-2 text-[var(--ink-2)]">{item.desc}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-
         <div className="mt-12 flex flex-wrap gap-4 reveal">
           <a href="tel:+33238479119" className="btn-primary">
             <Phone size={18} /> Passer commande
@@ -307,8 +384,263 @@ function MenuSection() {
           </a>
           <span className="text-sm text-[var(--ink-2)] self-center">Allergenes disponibles sur demande.</span>
         </div>
+
+        <div className="mt-16 reveal">
+          <h3 className="font-display text-4xl md:text-5xl">MENU DETAILLE</h3>
+          <p className="text-[var(--ink-2)] mt-2">Clique sur un article pour voir sa previsualisation complete.</p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+            {siteData.menu.map((group) => (
+              <div key={group.category} className="bg-white text-[#141414] brutal-border p-4 reveal">
+                <h4 className="font-display text-3xl mb-3">{group.category}</h4>
+                <div className="space-y-2">
+                  {group.items.map((item) => (
+                    <button
+                      key={`${group.category}-${item.name}`}
+                      onClick={() => setSelected({ ...item, category: group.category, photo: group.photo })}
+                      className="w-full text-left p-3 brutal-border bg-[var(--bone)] text-[var(--ink)] hover:bg-[var(--mustard)]/40 transition-colors"
+                    >
+                      <div className="font-bold">{item.name}</div>
+                      <div className="text-sm text-[var(--ink-2)]">{item.price}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {selected && (
+        <div className="fixed inset-0 z-[90] bg-black/70 p-4 flex items-center justify-center" onClick={() => setSelected(null)}>
+          <div className="bg-white text-[#141414] brutal-border max-w-lg w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <img src={selected.photo} alt={selected.name} className="w-full h-56 object-cover border-b-2 border-[var(--ink)]" />
+            <div className="p-6">
+              <div className="text-xs uppercase tracking-wider text-[var(--ink-2)]">{selected.category}</div>
+              <h4 className="font-display text-4xl mt-1">{selected.name}</h4>
+              <p className="mt-3 text-[var(--ink-2)]">{selected.desc}</p>
+              <p className="mt-4 font-display text-3xl text-[var(--ketchup)]">{selected.price}</p>
+              <div className="mt-6 flex gap-3">
+                <a href="tel:+33238479119" className="btn-primary !py-3 !px-4">
+                  <Phone size={16} /> Commander
+                </a>
+                <button onClick={() => setSelected(null)} className="btn-secondary !py-3 !px-4">
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function BackOffice({ siteData, setSiteData }) {
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    loadCloudData()
+      .then((cloud) => {
+        if (cloud && mounted) {
+          setSiteData(cloud);
+          setStatus('Donnees cloud chargees.');
+        }
+      })
+      .catch(() => {
+        if (mounted) setStatus('Cloud indisponible, mode local actif.');
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [setSiteData]);
+
+  const updateHero = (value) => setSiteData((prev) => ({ ...prev, heroText: value }));
+  const updateHighlights = (value) =>
+    setSiteData((prev) => ({
+      ...prev,
+      highlights: value.split(',').map((v) => v.trim()).filter(Boolean),
+    }));
+
+  const updateItem = (gIdx, iIdx, field, value) =>
+    setSiteData((prev) => {
+      const menu = prev.menu.map((g, gi) =>
+        gi !== gIdx
+          ? g
+          : {
+              ...g,
+              items: g.items.map((it, ii) => (ii === iIdx ? { ...it, [field]: value } : it)),
+            },
+      );
+      return { ...prev, menu };
+    });
+
+  const uploadPhoto = (gIdx, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSiteData((prev) => {
+        const menu = prev.menu.map((g, gi) => (gi === gIdx ? { ...g, photo: String(reader.result) } : g));
+        return { ...prev, menu };
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveLocal = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(siteData));
+    setStatus('Sauvegarde locale effectuee.');
+  };
+
+  const saveCloud = async () => {
+    try {
+      await saveCloudData(siteData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(siteData));
+      setStatus('Sauvegarde cloud effectuee.');
+    } catch {
+      setStatus('Erreur de sauvegarde cloud.');
+    }
+  };
+
+  const refreshCloud = async () => {
+    try {
+      const cloud = await loadCloudData();
+      if (cloud) {
+        setSiteData(cloud);
+        setStatus('Donnees cloud rechargees.');
+      } else {
+        setStatus('Aucune donnee cloud trouvee.');
+      }
+    } catch {
+      setStatus('Erreur de chargement cloud.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#111317] text-[#f4efe3] p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="font-display text-5xl">Back-Office Smash Berliner</h1>
+        <p className="text-[#b8b1a3] mt-2">Lien d'acces: ajoute `?admin=1` a l'URL. Sauvegarde cloud Firebase active.</p>
+        <p className="text-[#f2bf3a] mt-2 text-sm">{status}</p>
+
+        <div className="mt-8 bg-[#1a1d22] brutal-border p-4 md:p-6">
+          <h2 className="font-display text-3xl">Texte principal</h2>
+          <label className="block mt-4 text-sm">Hero</label>
+          <textarea
+            value={siteData.heroText}
+            onChange={(e) => updateHero(e.target.value)}
+            className="w-full mt-1 p-3 bg-white text-black brutal-border"
+            rows={3}
+          />
+          <label className="block mt-4 text-sm">Highlights (separes par virgule)</label>
+          <input
+            value={siteData.highlights.join(', ')}
+            onChange={(e) => updateHighlights(e.target.value)}
+            className="w-full mt-1 p-3 bg-white text-black brutal-border"
+          />
+        </div>
+
+        <div className="mt-8 space-y-6">
+          {siteData.menu.map((group, gIdx) => (
+            <div key={`${group.category}-${gIdx}`} className="bg-[#1a1d22] brutal-border p-4 md:p-6">
+              <h3 className="font-display text-3xl">{group.category}</h3>
+              <div className="mt-3 flex items-center gap-4">
+                <img src={group.photo} alt={group.category} className="w-24 h-24 object-cover brutal-border" />
+                <input type="file" accept="image/*" onChange={(e) => uploadPhoto(gIdx, e.target.files?.[0])} />
+              </div>
+              <div className="mt-4 space-y-4">
+                {group.items.map((item, iIdx) => (
+                  <div key={`${item.name}-${iIdx}`} className="bg-[#101215] brutal-border p-3">
+                    <div className="grid md:grid-cols-3 gap-2">
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateItem(gIdx, iIdx, 'name', e.target.value)}
+                        className="p-2 bg-white text-black brutal-border"
+                      />
+                      <input
+                        value={item.price}
+                        onChange={(e) => updateItem(gIdx, iIdx, 'price', e.target.value)}
+                        className="p-2 bg-white text-black brutal-border"
+                      />
+                      <input
+                        value={item.desc}
+                        onChange={(e) => updateItem(gIdx, iIdx, 'desc', e.target.value)}
+                        className="p-2 bg-white text-black brutal-border md:col-span-3"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button onClick={saveCloud} className="btn-primary">Enregistrer dans le cloud</button>
+          <button onClick={refreshCloud} className="btn-secondary">Charger depuis le cloud</button>
+          <button onClick={saveLocal} className="btn-secondary">Sauvegarde locale</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminLogin({ onSuccess, compact = false }) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (user === ADMIN_USER && pass === ADMIN_PASS) {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, 'ok');
+      setErr('');
+      onSuccess();
+      return;
+    }
+    setErr('Identifiants invalides.');
+  };
+
+  return (
+    <form onSubmit={submit} className={`${compact ? '' : 'max-w-md mx-auto'} bg-[#1a1d22] brutal-border p-5`}>
+      <h3 className="font-display text-3xl text-[#f4efe3]">Acces Back-Office</h3>
+      <p className="text-[#b8b1a3] text-sm mt-1">Connexion securisee requise.</p>
+      <label className="block text-sm text-[#f4efe3] mt-4">Identifiant</label>
+      <input value={user} onChange={(e) => setUser(e.target.value)} className="w-full mt-1 p-3 bg-white text-black brutal-border" />
+      <label className="block text-sm text-[#f4efe3] mt-3">Mot de passe</label>
+      <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} className="w-full mt-1 p-3 bg-white text-black brutal-border" />
+      {err ? <p className="mt-2 text-sm text-[#f36b74]">{err}</p> : null}
+      <button type="submit" className="btn-primary mt-4">Se connecter</button>
+    </form>
+  );
+}
+
+function AdminAccessButton() {
+  const [open, setOpen] = useState(false);
+  const goAdmin = () => {
+    const u = new URL(window.location.href);
+    u.searchParams.set('admin', '1');
+    window.location.href = u.toString();
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Acces back-office"
+        className="px-3 h-10 rounded-full bg-[var(--mustard)] text-[#121212] border-2 border-[#1a1c20] inline-flex items-center justify-center gap-2 shadow-[4px_4px_0_0_#0b0c0f]"
+      >
+        <KeyRound size={16} />
+        <span className="text-xs font-bold uppercase tracking-wider">Admin</span>
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-[96] bg-black/70 p-4 flex items-end sm:items-center justify-center" onClick={() => setOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
+            <AdminLogin onSuccess={goAdmin} compact />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -409,17 +741,17 @@ function ReviewsSection() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {REVIEWS.map((review) => (
-            <article key={review.name} className="reveal bg-white brutal-border p-6">
+            <article key={review.name} className="reveal bg-white text-[#141414] brutal-border p-6">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <strong>{review.name}</strong>
-                <span className="text-xs text-[var(--ink-2)]">{review.when}</span>
+                <span className="text-xs text-[#555]">{review.when}</span>
               </div>
               <div className="flex items-center gap-1 text-[var(--ketchup)] mb-3">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} size={16} fill="currentColor" strokeWidth={0} />
                 ))}
               </div>
-              <p className="text-[var(--ink-2)]">{review.text}</p>
+              <p className="text-[#222]">{review.text}</p>
             </article>
           ))}
         </div>
@@ -441,11 +773,11 @@ function HoursAndLocation() {
             <p className="mt-4 text-[var(--ink-2)]">Service rapide le midi, ambiance street-food le soir.</p>
           </div>
 
-          <div className="reveal bg-white brutal-border brutal-shadow p-6 space-y-3">
+          <div className="reveal bg-white text-[#141414] brutal-border brutal-shadow p-6 space-y-3">
             {HOURS.map(([day, time]) => (
-              <div key={day} className="flex justify-between gap-3 border-b border-[var(--ink)]/20 pb-2">
+              <div key={day} className="flex justify-between gap-3 border-b border-[#ddd] pb-2">
                 <span className="font-bold">{day}</span>
-                <span>{time}</span>
+                <span className="text-[#222]">{time}</span>
               </div>
             ))}
           </div>
@@ -518,18 +850,34 @@ function Footer() {
 
 export default function App() {
   useReveal();
+  const [siteData, setSiteData] = useState(loadSiteData);
+  const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+  const isAuthed = sessionStorage.getItem(ADMIN_SESSION_KEY) === 'ok';
+
+  if (isAdmin && !isAuthed) {
+    return (
+      <div className="min-h-screen bg-[#111317] p-4 flex items-center justify-center">
+        <AdminLogin onSuccess={() => window.location.reload()} />
+      </div>
+    );
+  }
+
+  if (isAdmin) return <BackOffice siteData={siteData} setSiteData={setSiteData} />;
 
   return (
     <div>
       <Nav />
-      <Hero />
+      <Hero siteData={siteData} />
       <MarqueeStrip />
-      <MenuSection />
+      <MenuSection siteData={siteData} />
       <AboutSection />
       <GallerySection />
       <ReviewsSection />
       <HoursAndLocation />
       <Footer />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 flex justify-end">
+        <AdminAccessButton />
+      </div>
     </div>
   );
 }
